@@ -1,0 +1,9 @@
+{
+  "name": "job-book-demo",
+  "private": true,
+  "description": "A tiny site whose version.json lets Job Book's live check tell merged from live. Used by Beat 6 of the Job Book demo.",
+  "scripts": {
+    "test": "node --test 'test/*.test.js'",
+    "build": "node build.js"
+  }
+}
