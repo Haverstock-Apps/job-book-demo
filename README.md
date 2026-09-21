@@ -35,3 +35,9 @@ preflight live add job-book-demo --repo Haverstock-Apps/job-book-demo --url http
 npm test
 GITHUB_SHA=$(git rev-parse HEAD) npm run build
 ```
+
+## After a demo
+
+The stage job changes the greeting. Put it back before the next demo, so the same job has something to change:
+revert the demo's pull request on GitHub and merge the revert. The live check then reads the revert's commit,
+which is the state the next demo's "before reading" should see.
