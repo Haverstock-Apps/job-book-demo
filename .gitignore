@@ -1,2 +1,5 @@
 _site/
 node_modules/
+# The demo workspace's connection holds a key, and this repo is public.
+.preflight.json
+.claude/preflight.json
