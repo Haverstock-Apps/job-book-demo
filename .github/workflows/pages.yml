@@ -30,7 +30,26 @@ jobs:
           # is logged, and any off loopback is REFUSED, so no test can reach a live host from here.
           NODE_OPTIONS: --require ${{ github.workspace }}/tools/net-audit.cjs
           NET_AUDIT_LOG: ${{ runner.temp }}/net-audit.jsonl
-        run: node --test 'test/*.test.js'
+        # Output also goes to suite-output.log, for "no test skipped". PIPESTATUS, not tee's 0.
+        run: |
+          { node --test 'test/*.test.js'; } 2>&1 | tee -a "$RUNNER_TEMP/suite-output.log"
+          exit "${PIPESTATUS[0]}"
+      # Did any test skip itself? A skipped test passes without running, so the suite can go green on less than it
+      # claims. node --test prints one "skipped N" summary line (ℹ in the spec reporter, # in TAP); this fails on any
+      # N above 0, and also when no summary line was printed at all: then nothing was checked. Same gate as router's and
+      # pressroom's (2026-09-24). Because publish needs this job, a skipped test also stops the site being published.
+      - name: no test skipped
+        if: always()
+        run: |
+          LOG="$RUNNER_TEMP/suite-output.log"
+          test -s "$LOG" || { echo "::error::$LOG is missing or empty — the suite's output was not captured, so nothing was checked"; exit 1; }
+          COUNTS=$(grep -E '^(ℹ|#) skipped [0-9]+$' "$LOG" || true)
+          [ -n "$COUNTS" ] || { echo "::error::no 'skipped N' summary line in the suite output, so nothing was checked"; exit 1; }
+          echo "$COUNTS"
+          if echo "$COUNTS" | grep -qvE ' skipped 0$'; then
+            echo "::error::a test was SKIPPED, so it passed without running (count above)"
+            exit 1
+          fi
       # Did any test reach a real host? Added 2026-09-24 after the same audit, run over preflight's suite, found a test
       # sending the developer's own key to the live workspace. A missing or empty log is red too: nothing was measured.
       - name: no test reached a real host
