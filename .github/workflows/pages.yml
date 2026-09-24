@@ -24,7 +24,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test 'test/*.test.js'
+      - name: run the suite
+        env:
+          # tools/net-audit.cjs (a copy of preflight's) in every Node process the tests start: each outbound connection
+          # is logged, and any off loopback is REFUSED, so no test can reach a live host from here.
+          NODE_OPTIONS: --require ${{ github.workspace }}/tools/net-audit.cjs
+          NET_AUDIT_LOG: ${{ runner.temp }}/net-audit.jsonl
+        run: node --test 'test/*.test.js'
+      # Did any test reach a real host? Added 2026-09-24 after the same audit, run over preflight's suite, found a test
+      # sending the developer's own key to the live workspace. A missing or empty log is red too: nothing was measured.
+      - name: no test reached a real host
+        if: always()
+        run: |
+          node tools/net-audit.cjs "${{ runner.temp }}/net-audit.jsonl" || {
+            echo "::error::a test connected (or tried to) to a host off loopback, or the audit log was not written — see the lines above"
+            exit 1
+          }
 
   publish:
     if: github.event_name != 'pull_request'
